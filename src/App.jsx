@@ -1,3 +1,7 @@
+const App = () => {
+  console.log('App component loaded!');
+  
+  // rest of your code...
 import React, { useState, useEffect } from 'react';
 import { 
   Wallet, Send, Eye, EyeOff, Copy, RefreshCw, AlertCircle, CheckCircle, 
