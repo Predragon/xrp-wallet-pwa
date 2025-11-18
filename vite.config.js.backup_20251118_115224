@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    target: 'es2020', // Changed from es2015 to support BigInt
+    target: 'es2015',
     minify: 'esbuild',
     rollupOptions: {
       output: {
@@ -15,10 +15,5 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      target: 'es2020' // Support BigInt in dependencies
-    }
   }
 })
