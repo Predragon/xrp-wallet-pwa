@@ -1,0 +1,115 @@
+import * as xrpl from 'xrpl';
+
+// Connect to XRP Testnet
+export const connectToTestnet = async () => {
+  const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233');
+  await client.connect();
+  return client;
+};
+
+// Get account balance
+export const getBalance = async (address) => {
+  const client = await connectToTestnet();
+  try {
+    const response = await client.request({
+      command: 'account_info',
+      account: address,
+      ledger_index: 'validated'
+    });
+    await client.disconnect();
+    return parseFloat(xrpl.dropsToXrp(response.result.account_data.Balance));
+  } catch (error) {
+    await client.disconnect();
+    throw error;
+  }
+};
+
+// Send XRP transaction
+export const sendXRP = async (senderSecret, recipientAddress, amount, destinationTag = null) => {
+  const client = await connectToTestnet();
+  
+  try {
+    // Create wallet from secret - ensure secret is a string
+    const secretString = String(senderSecret).trim();
+    const wallet = xrpl.Wallet.fromSeed(secretString);
+    
+    console.log('Wallet address:', wallet.address);
+    console.log('Sending to:', recipientAddress);
+    console.log('Amount:', amount);
+    
+    // Prepare payment transaction - convert amount to string explicitly
+    const payment = {
+      TransactionType: 'Payment',
+      Account: wallet.address,
+      Amount: xrpl.xrpToDrops(String(amount)),
+      Destination: String(recipientAddress).trim()
+    };
+    
+    // Add destination tag if provided
+    if (destinationTag && destinationTag !== '') {
+      payment.DestinationTag = parseInt(destinationTag);
+    }
+    
+    console.log('Payment object:', payment);
+    
+    // Prepare transaction
+    const prepared = await client.autofill(payment);
+    console.log('Prepared transaction:', prepared);
+    
+    // Sign transaction
+    const signed = wallet.sign(prepared);
+    console.log('Signed transaction');
+    
+    // Submit transaction
+    const result = await client.submitAndWait(signed.tx_blob);
+    console.log('Transaction result:', result);
+    
+    await client.disconnect();
+    
+    // Check if transaction was successful
+    if (result.result.meta.TransactionResult === 'tesSUCCESS') {
+      return {
+        success: true,
+        hash: result.result.hash,
+        result: result.result.meta.TransactionResult
+      };
+    } else {
+      throw new Error(`Transaction failed: ${result.result.meta.TransactionResult}`);
+    }
+  } catch (error) {
+    console.error('Transaction error:', error);
+    await client.disconnect();
+    throw error;
+  }
+};
+
+// Get transaction history
+export const getTransactionHistory = async (address, limit = 10) => {
+  const client = await connectToTestnet();
+  
+  try {
+    const response = await client.request({
+      command: 'account_tx',
+      account: address,
+      limit: limit,
+      ledger_index_min: -1,
+      ledger_index_max: -1
+    });
+    
+    await client.disconnect();
+    return response.result.transactions || [];
+  } catch (error) {
+    await client.disconnect();
+    console.error('Error fetching transaction history:', error);
+    return [];
+  }
+};
+
+// Validate XRP address
+export const isValidAddress = (address) => {
+  try {
+    return xrpl.isValidAddress(String(address).trim());
+  } catch (error) {
+    return false;
+  }
+};
