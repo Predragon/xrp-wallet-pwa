@@ -202,7 +202,6 @@ export const disconnect = async () => {
 
 // Secure storage functions (localStorage with basic encryption)
 const STORAGE_PREFIX = 'xrp_wallet_';
-const WALLETS_KEY = 'xrp_wallet_list';
 
 export const saveWallet = (wallet, password) => {
   try {
@@ -239,102 +238,12 @@ export const loadWallet = (password) => {
 };
 
 export const walletExists = () => {
-  const hasDefault = !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`);
-  const walletList = getSavedWallets();
-  return hasDefault || walletList.length > 0;
+  return !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`);
 };
 
 export const deleteWallet = () => {
   localStorage.removeItem(`${STORAGE_PREFIX}encrypted`);
   localStorage.removeItem(`${STORAGE_PREFIX}hash`);
-};
-
-// Multiple Wallets Management
-export const saveWalletToList = (wallet, password, name) => {
-  try {
-    const wallets = getSavedWallets();
-    
-    // Check if wallet already exists
-    const exists = wallets.find(w => w.address === wallet.address);
-    if (exists) {
-      return false; // Wallet already saved
-    }
-    
-    const data = JSON.stringify({ wallet, timestamp: Date.now() });
-    const encoded = btoa(data + password);
-    
-    const walletEntry = {
-      id: Date.now().toString(),
-      name: name,
-      address: wallet.address,
-      encrypted: encoded,
-      hash: btoa(password),
-      createdAt: new Date().toISOString()
-    };
-    
-    wallets.push(walletEntry);
-    localStorage.setItem(WALLETS_KEY, JSON.stringify(wallets));
-    
-    // Also save as default if no default exists
-    if (!localStorage.getItem(`${STORAGE_PREFIX}encrypted`)) {
-      saveWallet(wallet, password);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Save wallet to list error:', error);
-    return false;
-  }
-};
-
-export const getSavedWallets = () => {
-  try {
-    const data = localStorage.getItem(WALLETS_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-};
-
-export const loadWalletFromList = (walletId, password) => {
-  try {
-    const wallets = getSavedWallets();
-    const walletEntry = wallets.find(w => w.id === walletId);
-    
-    if (!walletEntry) return null;
-    if (btoa(password) !== walletEntry.hash) return null;
-    
-    const decoded = atob(walletEntry.encrypted);
-    const data = decoded.substring(0, decoded.length - password.length);
-    const parsed = JSON.parse(data);
-    
-    return parsed.wallet;
-  } catch (error) {
-    console.error('Load wallet from list error:', error);
-    return null;
-  }
-};
-
-export const removeWalletFromList = (walletId) => {
-  try {
-    const wallets = getSavedWallets();
-    const filtered = wallets.filter(w => w.id !== walletId);
-    localStorage.setItem(WALLETS_KEY, JSON.stringify(filtered));
-    return true;
-  } catch (error) {
-    console.error('Remove wallet error:', error);
-    return false;
-  }
-};
-
-export const clearAllWallets = () => {
-  try {
-    localStorage.removeItem(WALLETS_KEY);
-    return true;
-  } catch (error) {
-    console.error('Clear all wallets error:', error);
-    return false;
-  }
 };
 
 // Contact management

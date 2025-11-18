@@ -148,7 +148,57 @@ export const getTransactionHistory = async (address, limit = 20) => {
       limit: limit
     });
 
-    return response.result.transactions || [];
+    const rawTxs = response.result.transactions || [];
+
+    return rawTxs.map(txItem => {
+      const tx = txItem.tx;
+      const meta = txItem.meta;
+
+      if (!tx) return null;
+
+      let amount = 0;
+      let currency = '';
+
+      let isSent = tx.Account === address;
+      let isReceived = false;
+
+      if (tx.TransactionType === 'Payment') {
+        isReceived = tx.Destination === address;
+
+        if (typeof tx.Amount === 'string') {
+          amount = dropsToXrp(tx.Amount);
+          currency = 'XRP';
+        } else if (tx.Amount && tx.Amount.value && tx.Amount.currency) {
+          amount = parseFloat(tx.Amount.value);
+          currency = tx.Amount.currency;
+        }
+      } else if (tx.TransactionType === 'OfferCreate') {
+        // Basic handling for OfferCreate - you may want to expand this
+        if (meta.delivered_amount) {
+          if (typeof meta.delivered_amount === 'string') {
+            amount = dropsToXrp(meta.delivered_amount);
+            currency = 'XRP';
+          } else {
+            amount = parseFloat(meta.delivered_amount.value);
+            currency = meta.delivered_amount.currency;
+          }
+        }
+        isSent = true; // Typically sent by the account
+        isReceived = false;
+      }
+
+      return {
+        txHash: tx.hash,
+        txType: tx.TransactionType,
+        isSent,
+        isReceived,
+        amount,
+        currency,
+        date: new Date((tx.date + 946684800) * 1000).toLocaleString(),
+        destinationTag: tx.DestinationTag,
+        isSuccess: meta.TransactionResult === 'tesSUCCESS'
+      };
+    }).filter(Boolean);
   } catch (error) {
     if (error.data?.error === 'actNotFound') {
       return []; // No transactions yet

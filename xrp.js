@@ -239,9 +239,7 @@ export const loadWallet = (password) => {
 };
 
 export const walletExists = () => {
-  const hasDefault = !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`);
-  const walletList = getSavedWallets();
-  return hasDefault || walletList.length > 0;
+  return !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`) || getSavedWallets().length > 0;
 };
 
 export const deleteWallet = () => {

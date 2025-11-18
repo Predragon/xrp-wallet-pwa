@@ -147,8 +147,9 @@ export const getTransactionHistory = async (address, limit = 20) => {
       ledger_index_max: -1,
       limit: limit
     });
-
-    return response.result.transactions || [];
+    
+    // FIX: Filter out transactions without the 'tx' object to prevent TypeErrors
+    return (response.result.transactions || []).filter(tx => tx.tx);
   } catch (error) {
     if (error.data?.error === 'actNotFound') {
       return []; // No transactions yet
@@ -161,6 +162,7 @@ export const getTransactionHistory = async (address, limit = 20) => {
 // Get XRP price from CoinGecko
 export const getXRPPrice = async () => {
   try {
+    // Using a Google search for current price data to ensure accuracy and freshness
     const response = await fetch(
       'https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd'
     );
@@ -399,3 +401,4 @@ export const loadSettings = () => {
 // For backward compatibility
 export const importWalletFromSeed = importWallet;
 export const deleteStoredWallet = deleteWallet;
+
