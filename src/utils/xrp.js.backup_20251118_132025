@@ -248,21 +248,16 @@ export const deleteWallet = () => {
 
 // Contact management
 export const saveContact = (name, address, tag = '') => {
-  try {
-    const contacts = getContacts();
-    const contact = { 
-      id: Date.now().toString(), 
-      name, 
-      address, 
-      tag: tag || '' 
-    };
-    contacts.push(contact);
-    localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
-    return contact;
-  } catch (error) {
-    console.error('Save contact error:', error);
-    return null;
-  }
+  const contacts = getContacts();
+  const contact = { 
+    id: Date.now(), 
+    name, 
+    address, 
+    tag: tag || '' 
+  };
+  contacts.push(contact);
+  localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
+  return contact;
 };
 
 export const getContacts = () => {
@@ -275,25 +270,13 @@ export const getContacts = () => {
 };
 
 export const deleteContact = (id) => {
-  try {
-    const contacts = getContacts().filter(c => c.id !== id && c.id !== parseInt(id));
-    localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
-    return true;
-  } catch (error) {
-    console.error('Delete contact error:', error);
-    return false;
-  }
+  const contacts = getContacts().filter(c => c.id !== id);
+  localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
 };
 
 // Settings management
 export const saveSettings = (settings) => {
-  try {
-    localStorage.setItem(`${STORAGE_PREFIX}settings`, JSON.stringify(settings));
-    return true;
-  } catch (error) {
-    console.error('Save settings error:', error);
-    return false;
-  }
+  localStorage.setItem(`${STORAGE_PREFIX}settings`, JSON.stringify(settings));
 };
 
 export const loadSettings = () => {
@@ -304,7 +287,3 @@ export const loadSettings = () => {
     return { network: 'testnet' };
   }
 };
-
-// For backward compatibility
-export const importWalletFromSeed = importWallet;
-export const deleteStoredWallet = deleteWallet;
