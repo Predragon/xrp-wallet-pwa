@@ -21,12 +21,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    
-    <!-- Service Worker Registration (if not using vite-plugin-pwa) -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW failed'));
-      }
-    </script>
   </body>
 </html>
