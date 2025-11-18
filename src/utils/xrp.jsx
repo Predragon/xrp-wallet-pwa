@@ -148,7 +148,57 @@ export const getTransactionHistory = async (address, limit = 20) => {
       limit: limit
     });
 
-    return response.result.transactions || [];
+    const rawTxs = response.result.transactions || [];
+
+    return rawTxs.map(txItem => {
+      const tx = txItem.tx;
+      const meta = txItem.meta;
+
+      if (!tx) return null;
+
+      let amount = 0;
+      let currency = '';
+
+      let isSent = tx.Account === address;
+      let isReceived = false;
+
+      if (tx.TransactionType === 'Payment') {
+        isReceived = tx.Destination === address;
+
+        if (typeof tx.Amount === 'string') {
+          amount = dropsToXrp(tx.Amount);
+          currency = 'XRP';
+        } else if (tx.Amount && tx.Amount.value && tx.Amount.currency) {
+          amount = parseFloat(tx.Amount.value);
+          currency = tx.Amount.currency;
+        }
+      } else if (tx.TransactionType === 'OfferCreate') {
+        // Basic handling for OfferCreate - you may want to expand this
+        if (meta.delivered_amount) {
+          if (typeof meta.delivered_amount === 'string') {
+            amount = dropsToXrp(meta.delivered_amount);
+            currency = 'XRP';
+          } else {
+            amount = parseFloat(meta.delivered_amount.value);
+            currency = meta.delivered_amount.currency;
+          }
+        }
+        isSent = true; // Typically sent by the account
+        isReceived = false;
+      }
+
+      return {
+        txHash: tx.hash,
+        txType: tx.TransactionType,
+        isSent,
+        isReceived,
+        amount,
+        currency,
+        date: new Date((tx.date + 946684800) * 1000).toLocaleString(),
+        destinationTag: tx.DestinationTag,
+        isSuccess: meta.TransactionResult === 'tesSUCCESS'
+      };
+    }).filter(Boolean);
   } catch (error) {
     if (error.data?.error === 'actNotFound') {
       return []; // No transactions yet
@@ -158,14 +208,17 @@ export const getTransactionHistory = async (address, limit = 20) => {
   }
 };
 
-// Get XRP price from CoinGecko
+// Get XRP price from Binance
 export const getXRPPrice = async () => {
   try {
     const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd'
+      'https://api.binance.com/api/v3/ticker/price?symbol=XRPUSDT'
     );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
-    return data.ripple?.usd || 0;
+    return parseFloat(data.price) || 0;
   } catch (error) {
     console.error('Price fetch error:', error);
     return 0;
@@ -202,6 +255,7 @@ export const disconnect = async () => {
 
 // Secure storage functions (localStorage with basic encryption)
 const STORAGE_PREFIX = 'xrp_wallet_';
+const WALLETS_KEY = 'xrp_wallet_list';
 
 export const saveWallet = (wallet, password) => {
   try {
@@ -238,7 +292,9 @@ export const loadWallet = (password) => {
 };
 
 export const walletExists = () => {
-  return !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`);
+  const hasDefault = !!localStorage.getItem(`${STORAGE_PREFIX}encrypted`);
+  const walletList = getSavedWallets();
+  return hasDefault || walletList.length > 0;
 };
 
 export const deleteWallet = () => {
@@ -246,18 +302,111 @@ export const deleteWallet = () => {
   localStorage.removeItem(`${STORAGE_PREFIX}hash`);
 };
 
+// Multiple Wallets Management
+export const saveWalletToList = (wallet, password, name) => {
+  try {
+    const wallets = getSavedWallets();
+    
+    // Check if wallet already exists
+    const exists = wallets.find(w => w.address === wallet.address);
+    if (exists) {
+      return false; // Wallet already saved
+    }
+    
+    const data = JSON.stringify({ wallet, timestamp: Date.now() });
+    const encoded = btoa(data + password);
+    
+    const walletEntry = {
+      id: Date.now().toString(),
+      name: name,
+      address: wallet.address,
+      encrypted: encoded,
+      hash: btoa(password),
+      createdAt: new Date().toISOString()
+    };
+    
+    wallets.push(walletEntry);
+    localStorage.setItem(WALLETS_KEY, JSON.stringify(wallets));
+    
+    // Also save as default if no default exists
+    if (!localStorage.getItem(`${STORAGE_PREFIX}encrypted`)) {
+      saveWallet(wallet, password);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Save wallet to list error:', error);
+    return false;
+  }
+};
+
+export const getSavedWallets = () => {
+  try {
+    const data = localStorage.getItem(WALLETS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const loadWalletFromList = (walletId, password) => {
+  try {
+    const wallets = getSavedWallets();
+    const walletEntry = wallets.find(w => w.id === walletId);
+    
+    if (!walletEntry) return null;
+    if (btoa(password) !== walletEntry.hash) return null;
+    
+    const decoded = atob(walletEntry.encrypted);
+    const data = decoded.substring(0, decoded.length - password.length);
+    const parsed = JSON.parse(data);
+    
+    return parsed.wallet;
+  } catch (error) {
+    console.error('Load wallet from list error:', error);
+    return null;
+  }
+};
+
+export const removeWalletFromList = (walletId) => {
+  try {
+    const wallets = getSavedWallets();
+    const filtered = wallets.filter(w => w.id !== walletId);
+    localStorage.setItem(WALLETS_KEY, JSON.stringify(filtered));
+    return true;
+  } catch (error) {
+    console.error('Remove wallet error:', error);
+    return false;
+  }
+};
+
+export const clearAllWallets = () => {
+  try {
+    localStorage.removeItem(WALLETS_KEY);
+    return true;
+  } catch (error) {
+    console.error('Clear all wallets error:', error);
+    return false;
+  }
+};
+
 // Contact management
 export const saveContact = (name, address, tag = '') => {
-  const contacts = getContacts();
-  const contact = { 
-    id: Date.now(), 
-    name, 
-    address, 
-    tag: tag || '' 
-  };
-  contacts.push(contact);
-  localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
-  return contact;
+  try {
+    const contacts = getContacts();
+    const contact = { 
+      id: Date.now().toString(), 
+      name, 
+      address, 
+      tag: tag || '' 
+    };
+    contacts.push(contact);
+    localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
+    return contact;
+  } catch (error) {
+    console.error('Save contact error:', error);
+    return null;
+  }
 };
 
 export const getContacts = () => {
@@ -270,13 +419,25 @@ export const getContacts = () => {
 };
 
 export const deleteContact = (id) => {
-  const contacts = getContacts().filter(c => c.id !== id);
-  localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
+  try {
+    const contacts = getContacts().filter(c => c.id !== id && c.id !== parseInt(id));
+    localStorage.setItem(`${STORAGE_PREFIX}contacts`, JSON.stringify(contacts));
+    return true;
+  } catch (error) {
+    console.error('Delete contact error:', error);
+    return false;
+  }
 };
 
 // Settings management
 export const saveSettings = (settings) => {
-  localStorage.setItem(`${STORAGE_PREFIX}settings`, JSON.stringify(settings));
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}settings`, JSON.stringify(settings));
+    return true;
+  } catch (error) {
+    console.error('Save settings error:', error);
+    return false;
+  }
 };
 
 export const loadSettings = () => {
@@ -287,3 +448,7 @@ export const loadSettings = () => {
     return { network: 'testnet' };
   }
 };
+
+// For backward compatibility
+export const importWalletFromSeed = importWallet;
+export const deleteStoredWallet = deleteWallet;
