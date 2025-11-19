@@ -475,4 +475,3 @@ export const loadSettings = () => {
 
 // For backward compatibility
 export const importWalletFromSeed = importWallet;
-export const deleteStoredWallet = deleteWallet;

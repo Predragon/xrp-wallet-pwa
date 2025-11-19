@@ -1,7 +1,7 @@
 {
-  "name": "Prudent Bear - XRP Wallet",
-  "short_name": "Prudent Bear",
-  "description": "Secure XRP Ledger Wallet - Send, receive, and manage XRP with Prudent Bear",
+  "name": "XRP Wallet",
+  "short_name": "XRP Wallet",
+  "description": "Secure XRP Ledger Wallet - Send, receive, and manage XRP",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e1b4b",
@@ -63,8 +63,7 @@
     {
       "src": "/screenshots/screenshot1.png",
       "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow"
+      "type": "image/png"
     }
   ],
   "shortcuts": [
@@ -72,19 +71,7 @@
       "name": "Send XRP",
       "short_name": "Send",
       "description": "Send XRP to an address",
-      "url": "/?action=send",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Receive XRP",
-      "short_name": "Receive",
-      "description": "View your XRP address",
-      "url": "/?action=receive",
+      "url": "/",
       "icons": [
         {
           "src": "/icons/icon-96x96.png",
@@ -92,6 +79,5 @@
         }
       ]
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }
